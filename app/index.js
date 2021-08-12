@@ -45,7 +45,6 @@ io.on("connection", (socket) => {
     console.log(users);
 
     socket.on('search user', ({ username }) => {
-        console.log(`search user: ${username}`);
         const user = users[username];
         socket.emit('search user', {
             username,
