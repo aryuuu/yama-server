@@ -8,6 +8,8 @@ const io = require('socket.io')(server, {
 const bodyParser = require('body-parser');
 const config = require('config');
 const cors = require('cors');
+const userHandler = require('app/handlers/user');
+const messageHandler = require('app/handlers/message');
 const users = {};
 
 app.use(bodyParser.urlencoded({ extended: false}));
@@ -22,18 +24,28 @@ app.use(require('app/middlewares/error-handler'));
 // })
 io.use((socket, next) => {
     const username = socket.handshake.auth.username;
+    const displayName = socket.handshake.auth.display_name;
     if (!username) {
         return next(new Error("invalid username"));
     }
     socket.username = username;
+    socket.displayName = displayName ? displayName : username;
     next();
 })
 
 io.on("connection", (socket) => {
     users[socket.username] = {
         userID: socket.id,
-        username: socket.username
+        username: socket.username,
+        displayName: socket.displayName
     }
+
+    const newUser = {
+        display_name: socket.displayName,
+        address: socket.username,
+    }
+
+    // userHandler.createUser(newUser);
     // const users = [];
     // for (let [id, socket] of io.of("/").sockets) {
     //     users.push({
@@ -44,32 +56,59 @@ io.on("connection", (socket) => {
     // socket.emit("users", users);
     console.log(users);
 
-    socket.on('search user', ({ username }) => {
-        const user = users[username];
+    socket.on('search user', async ({ username }) => {
+        const user = users[username]
+
         socket.emit('search user', {
             username,
-            isExist: user !== undefined
+            display_name: user ? user.displayName : '',
+            isExist: user !== undefined,
+            isOnline: user !== undefined,
         });
     });
 
-    socket.on("private message", ({ content, to }) => {
+    socket.on('search name', async ({ username }) => {
+        const user = users[username];
+        socket.emit('search name', {
+            username,
+            display_name: user.displayName,
+        });
+    })
+
+    socket.on("private message", (req) => {
+        const { 
+            content, 
+            to, 
+            room_id,
+            type,
+            filename,
+        } = req;
         console.log(socket.id)
-        // socket.emit('ack', 'acknowledged');
+        console.log(`message sent in room ${room_id}`);
         const targetID = users[to] ? users[to].userID : '';
-        // console.log(`to ${to}`);
-        // console.log(`target id: ${users[to] ? users[to].userID : 'not found'}`);
-        // console.log(`message ${content}`)
-        // console.log(`sender username: ${socket.username}`);
 
         if (targetID !== '') {
             console.log(`sending message to: ${targetID}`)
             const message = {
                 content,
                 from: socket.username,
+                display_name: users[socket.username].displayName,
                 to,
+                type,
+                filename,
             };
             socket.to(targetID).to(socket.id).emit("private message", message);
         }
+        const newMessage = {
+            room: room_id,
+            from: socket.username,
+            display_name: users[socket.username].displayName,
+            to: to,
+            content: content,
+            type: type,
+            filename: filename
+        }
+        // messageHandler.createMessage(newMessage);
         socket.emit("private message ack", {
             from: socket.username,
             content

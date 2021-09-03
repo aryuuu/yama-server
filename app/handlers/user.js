@@ -10,18 +10,14 @@ const ServiceError = require('app/utils/service-error');
 const salt = bcrypt.genSaltSync(10);
 
 const createUser = async (data) => {
-  assertNotNull(data, 'username');
-  assertNotNull(data, 'password');
+  // assertNotNull(data, 'display_name');
   assertNotNull(data, 'address');
 
-  const user = await userRepo.getUserByUsername(data.username);
-
-  if (user != null) {
-    throw new ServiceError(400, `username ${data.username} already exist`);
+  if (data.display_name === undefined || data.display_name === '') {
+    data.display_name = data.address;
   }
 
-  const password = await bcrypt.hashSync(data.password, salt);
-  const result = userRepo.createUser(data.username, password, data.address);
+  const result = userRepo.createUser(data.display_name, data.address);
 
   return result;
 }
@@ -65,25 +61,21 @@ const getUserByIdentifier = async (identifier) => {
 
 }
 
-const getUserByUsername = async (username) => {
+const getUserByAddress = async (address) => {
+  const user = userRepo.getUserByAddress(address);
 
+  return user;
 }
 
 const updateUser = async (userId, data) => {
   const filteredData = getOnlyDefinedFields(
     data,
     [
-      'username',
-      'password',
-      'address'
+      'display_name',
     ]
   );
 
-  if (filteredData.password != null) {
-    filteredData.password = bcrypt.hashSync(filteredData.password, salt);
-  }
-
-  const result= userRepo.updateUser(userId, filteredData);
+  const result = userRepo.updateUser(userId, filteredData);
 
   return result;
 }
@@ -97,6 +89,7 @@ module.exports = {
   authenticateUserByUsername,
   getUsers,
   getUserByIdentifier,
+  getUserByAddress,
   updateUser,
   deleteUser,
 }

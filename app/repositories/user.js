@@ -1,15 +1,21 @@
 const Model = require('app/models/user');
 
-const createUser = async (username, password, address) => {
+const createUser = async (displayName, address) => {
   const currTime = Date.now();
 
-  const doc = await Model.create({
-    username: username,
-    password: password,
+  const query = {
+    address: address
+  };
+  const update = {
+    display_name: displayName,
     address: address,
-    created_at: currTime,
     updated_at: currTime,
-  });
+  };
+  const options = {
+    upsert: true,
+  }
+
+  const doc = await Model.update(query, update, options)
 
   return { created_at: currTime, user_id: doc._id };
 }
@@ -47,15 +53,31 @@ const getUserById = async (userId) => {
   return user ? user._doc : user;
 }
 
-const getUserByUsername = async (username) => {
+const getUserByAddress = async (address) => {
   const result = await Model.findOne(
     {
-      username: username,
+      address: address,
     },
     {
       _id: 1,
-      username: 1,
-      password: 1,
+      display_name: 1,
+      role: 1,
+      created_at: 1,
+      updated_at: 1,
+    }
+  ).exec();
+
+  return result ? result._doc : result;
+}
+
+const getUserByDisplayName = async (displayName) => {
+  const result = await Model.findOne(
+    {
+      display_name: displayName,
+    },
+    {
+      _id: 1,
+      display_name: 1,
       role: 1,
       created_at: 1,
       updated_at: 1,
@@ -77,7 +99,7 @@ const updateUser = async (userId, data) => {
     },
   ).exec();
 
-  return result != null ? 1 : 0;8
+  return result != null ? 1 : 0;
 }
 
 const deleteUser = async (userId) => {
@@ -89,7 +111,8 @@ module.exports = {
   createUser,
   getUsers,
   getUserById,
-  getUserByUsername,
+  getUserByDisplayName,
+  getUserByAddress,
   updateUser,
   deleteUser
 }
